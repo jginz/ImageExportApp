@@ -1,0 +1,19 @@
+name: Build apps
+on: [workflow_dispatch]
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt pyinstaller
+      - run: pyinstaller --windowed --name ConfocalDeck --collect-all tkinterdnd2 app.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ConfocalDeck-${{ matrix.os }}
+          path: dist/
