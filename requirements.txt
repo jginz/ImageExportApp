@@ -1,3 +1,5 @@
 python-pptx
 Pillow
 tkinterdnd2
+sv-ttk
+darkdetect

@@ -31,7 +31,7 @@ Assumes channel order in the filename matches C001-C004. Folders with no merged 
 
 ## Build a standalone app (build on each OS you need)
     pip install pyinstaller
-    pyinstaller --windowed --name ConfocalDeck --collect-all tkinterdnd2 app.py
+    pyinstaller --windowed --name ConfocalDeck --collect-all tkinterdnd2 --collect-all sv_ttk app.py
 
 Mac: `dist/ConfocalDeck.app`. Windows: `dist/ConfocalDeck/ConfocalDeck.exe`.
 Or push this folder to GitHub and run the "Build apps" workflow to get both.

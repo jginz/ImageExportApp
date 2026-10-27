@@ -7,27 +7,47 @@ from tkinter import filedialog, messagebox, ttk
 
 from tkinterdnd2 import DND_FILES, TkinterDnD
 
+import sv_ttk
+
 import core
 import review
+
+try:
+    import darkdetect
+except ImportError:
+    darkdetect = None
+
+
+def apply_theme(root):
+    """Sun Valley theme, following the system light/dark setting."""
+    dark = bool(darkdetect) and (darkdetect.theme() or "").lower() == "dark"
+    sv_ttk.set_theme("dark" if dark else "light")
+    st = ttk.Style(root)
+    root.option_add("*Font", ("Segoe UI" if sys.platform.startswith("win") else "Helvetica Neue", 12))
+    return st
 
 
 class App(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
         self.title("Confocal Deck Builder")
-        self.geometry("560x560")
+        self.geometry("640x700")
+        self.style = apply_theme(self)
         self.folder = None
         self.samples, self.settings = [], {}
 
-        self.drop = tk.Label(self, text="Drop a folder here\n(or click to browse)", relief="groove", bd=3,
-                             height=5, font=("Helvetica", 14), cursor="hand2")
-        self.drop.pack(fill="x", padx=16, pady=(16, 8))
-        self.drop.drop_target_register(DND_FILES)
-        self.drop.dnd_bind("<<Drop>>", self.on_drop)
-        self.drop.bind("<Button-1>", lambda e: self.browse())
+        card = ttk.Frame(self, style="Card.TFrame", padding=24)
+        card.pack(fill="x", padx=20, pady=(20, 8))
+        self.drop = ttk.Label(card, text="Drop a folder here\nor click to browse", anchor="center", justify="center",
+                              font=("Helvetica Neue", 15), cursor="hand2")
+        self.drop.pack(fill="x", ipady=18)
+        for w in (card, self.drop):
+            w.drop_target_register(DND_FILES)
+            w.dnd_bind("<<Drop>>", self.on_drop)
+            w.bind("<Button-1>", lambda e: self.browse())
 
         o = ttk.LabelFrame(self, text="Options")
-        o.pack(fill="x", padx=16, pady=8)
+        o.pack(fill="x", padx=20, pady=8, ipady=4)
         self.recursive = tk.BooleanVar(value=True)
         self.merge = tk.BooleanVar(value=True)
         self.title_on = tk.BooleanVar(value=True)
@@ -50,17 +70,19 @@ class App(TkinterDnD.Tk):
         o.columnconfigure(0, weight=1)
 
         row = ttk.Frame(self)
-        row.pack(pady=6)
+        row.pack(pady=10)
         self.rbtn = ttk.Button(row, text="Review...", command=self.open_review, state="disabled")
         self.rbtn.pack(side="left", padx=4)
-        self.btn = ttk.Button(row, text="Create PowerPoint", command=self.run, state="disabled")
+        self.btn = ttk.Button(row, text="Create PowerPoint", command=self.run, state="disabled", style="Accent.TButton")
         self.btn.pack(side="left", padx=4)
         self.pbtn = ttk.Button(row, text="Export PNGs...", command=lambda: self.run("png"), state="disabled")
         self.pbtn.pack(side="left", padx=4)
         self.bar = ttk.Progressbar(self, mode="determinate")
-        self.bar.pack(fill="x", padx=16)
-        self.log = tk.Text(self, height=9, state="disabled", font=("Courier", 10))
-        self.log.pack(fill="both", expand=True, padx=16, pady=8)
+        self.bar.pack(fill="x", padx=20)
+        fg, bg = self.style.lookup("TEntry", "foreground") or "black", self.style.lookup("TEntry", "fieldbackground") or "white"
+        self.log = tk.Text(self, height=9, state="disabled", font=("Menlo" if sys.platform == "darwin" else "Consolas", 10),
+                           relief="flat", bd=0, padx=10, pady=8, fg=fg, bg=bg, highlightthickness=0)
+        self.log.pack(fill="both", expand=True, padx=20, pady=(10, 20))
 
     def say(self, msg):
         self.log.configure(state="normal"); self.log.insert("end", msg + "\n"); self.log.see("end"); self.log.configure(state="disabled")
