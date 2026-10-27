@@ -23,7 +23,7 @@ class ReviewWindow(tk.Toplevel):
     def __init__(self, parent, samples, settings):
         super().__init__(parent)
         self.title("Review images")
-        self.geometry("1000x640")
+        self.geometry("1040x700")
         self.samples, self.settings = samples, settings
         self.cache = {}      # key -> (merge preview, [channel previews])
         self.cur = None      # current Sample
@@ -32,9 +32,16 @@ class ReviewWindow(tk.Toplevel):
 
         left = ttk.Frame(self)
         left.pack(side="left", fill="y", padx=8, pady=8)
-        self.listbox = tk.Listbox(left, width=34, exportselection=False)
+        st = ttk.Style(self)
+        fg, bg = st.lookup("TEntry", "foreground") or "black", st.lookup("TEntry", "fieldbackground") or "white"
+        self.listbox = tk.Listbox(left, width=34, exportselection=False, relief="flat", bd=0, highlightthickness=0,
+                                  fg=fg, bg=bg, activestyle="none", selectbackground="#0067c0", selectforeground="white")
         self.listbox.pack(fill="y", expand=True)
         self.listbox.bind("<<ListboxSelect>>", lambda e: self.select(self.listbox.curselection()))
+        bulk = ttk.Frame(left)
+        bulk.pack(fill="x", pady=(6, 0))
+        ttk.Button(bulk, text="Select all", command=lambda: self.set_all(True)).pack(side="left", expand=True, fill="x", padx=(0, 3))
+        ttk.Button(bulk, text="Uncheck all", command=lambda: self.set_all(False)).pack(side="left", expand=True, fill="x", padx=(3, 0))
         self.include = tk.BooleanVar(value=True)
         ttk.Checkbutton(left, text="Include in deck", variable=self.include, command=self.toggle_include).pack(anchor="w", pady=4)
 
@@ -88,6 +95,12 @@ class ReviewWindow(tk.Toplevel):
         self.build_controls()
         self.redraw()
 
+    def set_all(self, value):
+        core.set_include_all(self.settings, value)
+        if self.cur:
+            self.include.set(value)
+        self.refresh_list()
+
     def toggle_include(self):
         self.st().include = self.include.get()
         self.refresh_list()
@@ -102,18 +115,21 @@ class ReviewWindow(tk.Toplevel):
             f.pack(fill="x", pady=3)
             thumb = tk.Label(f, bg="black")
             thumb.grid(row=0, column=0, rowspan=3, padx=4, pady=4)
-            lo, hi = tk.IntVar(value=cs.lo), tk.IntVar(value=cs.hi)
+            lo, hi = tk.DoubleVar(value=cs.lo), tk.DoubleVar(value=cs.hi)
             vis, lock = tk.BooleanVar(value=cs.visible), tk.BooleanVar(value=cs.locked)
-            s_lo = tk.Scale(f, from_=0, to=254, orient="horizontal", variable=lo, label="Min", length=200,
-                            command=lambda v, k=k: self.on_slider(k, "lo"))
-            s_hi = tk.Scale(f, from_=1, to=255, orient="horizontal", variable=hi, label="Max", length=200,
-                            command=lambda v, k=k: self.on_slider(k, "hi"))
-            s_lo.grid(row=0, column=1, columnspan=3)
-            s_hi.grid(row=1, column=1, columnspan=3)
+            lo_txt, hi_txt = tk.StringVar(value=f"Min {cs.lo}"), tk.StringVar(value=f"Max {cs.hi}")
+            s_lo = ttk.Scale(f, from_=0, to=254, orient="horizontal", variable=lo, length=170,
+                             command=lambda v, k=k: self.on_slider(k, "lo"))
+            s_hi = ttk.Scale(f, from_=1, to=255, orient="horizontal", variable=hi, length=170,
+                             command=lambda v, k=k: self.on_slider(k, "hi"))
+            ttk.Label(f, textvariable=lo_txt, width=7).grid(row=0, column=1, sticky="w")
+            ttk.Label(f, textvariable=hi_txt, width=7).grid(row=1, column=1, sticky="w")
+            s_lo.grid(row=0, column=2, columnspan=2, padx=4, pady=2)
+            s_hi.grid(row=1, column=2, columnspan=2, padx=4, pady=2)
             ttk.Checkbutton(f, text="Show", variable=vis, command=lambda k=k: self.on_show(k)).grid(row=2, column=1)
             ttk.Checkbutton(f, text="Lock", variable=lock, command=lambda k=k: self.on_lock(k)).grid(row=2, column=2)
             ttk.Button(f, text="Reset", command=lambda k=k: self.on_reset(k)).grid(row=2, column=3)
-            self.rows.append(dict(thumb=thumb, lo=lo, hi=hi, vis=vis, lock=lock, s_lo=s_lo, s_hi=s_hi))
+            self.rows.append(dict(thumb=thumb, lo=lo, hi=hi, vis=vis, lock=lock, s_lo=s_lo, s_hi=s_hi, lo_txt=lo_txt, hi_txt=hi_txt))
             self.set_lock_state(k)
 
     def set_lock_state(self, k):
@@ -124,7 +140,7 @@ class ReviewWindow(tk.Toplevel):
     # --- handlers ---------------------------------------------------------
     def on_slider(self, k, which):
         cs, r = self.st().channels[k], self.rows[k]
-        cs.lo, cs.hi = r["lo"].get(), r["hi"].get()
+        cs.lo, cs.hi = int(round(r["lo"].get())), int(round(r["hi"].get()))
         if cs.hi <= cs.lo:  # keep min below max
             if which == "lo":
                 cs.lo = cs.hi - 1
@@ -132,6 +148,8 @@ class ReviewWindow(tk.Toplevel):
             else:
                 cs.hi = cs.lo + 1
                 r["hi"].set(cs.hi)
+        r["lo_txt"].set(f"Min {cs.lo}")
+        r["hi_txt"].set(f"Max {cs.hi}")
         self.redraw()
 
     def on_show(self, k):
@@ -149,6 +167,8 @@ class ReviewWindow(tk.Toplevel):
         cs.lo, cs.hi = 0, 255
         r["lo"].set(0)
         r["hi"].set(255)
+        r["lo_txt"].set("Min 0")
+        r["hi_txt"].set("Max 255")
         self.redraw()
 
     def apply_all(self):

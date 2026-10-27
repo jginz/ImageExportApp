@@ -69,6 +69,11 @@ def default_settings(samples):
     return {s.key: SampleSettings(channels=[ChannelSetting() for _ in s.names]) for s in samples}
 
 
+def set_include_all(settings, value):
+    for st in settings.values():
+        st.include = value
+
+
 def apply_to_all(settings, source_key):
     """Copy the source sample's display windows to every other sample, skipping locked channels."""
     src = settings[source_key]
